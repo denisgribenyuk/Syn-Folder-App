@@ -11,10 +11,6 @@
 ```bash
   make build
 ```
-Пример:
-```bash
-  ./syncfolder ./douplicate ./origin_folder
-```
 ## Запуск
 
 Для запуска приложения необходимо выполнить команду
@@ -24,6 +20,6 @@
 ```
 Пример:
 ```bash
-  ./syncfolder ./origin_folder ./douplicate 
+  ./syncfolder ./origin_folder ./duplicate 
 ```
     
