@@ -2,8 +2,8 @@ package sync_folder
 
 import (
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"sync"
@@ -19,20 +19,20 @@ type FileInfo struct {
 	Permissons string
 }
 
-func SyncDirs(wg *sync.WaitGroup, logger *log.Logger, src, dst string) error {
+func SyncDirs(wg *sync.WaitGroup, logger *logrus.Logger, src, dst string) error {
 	defer wg.Done()
 
 	// Получаем список файлов и директорий в первой директории
 	dstFiles, err := GetFiles(dst)
 	if err != nil {
-		logger.Printf("Failed to get files in %s: %v\n", dst, err)
+		logger.Error("Failed to get files in %s: %v", dst, err)
 		return err
 	}
 
 	// Получаем список файлов и директорий во второй директории
 	srcFiles, err := GetFiles(src)
 	if err != nil {
-		logger.Printf("Failed to get files in %s: %v\n", src, err)
+		logger.Error("Failed to get files in %s: %v", src, err)
 		return err
 	}
 	// Добавляем файлы и директории из второй директории в первую, если их нет
@@ -40,7 +40,7 @@ func SyncDirs(wg *sync.WaitGroup, logger *log.Logger, src, dst string) error {
 		if _, ok := dstFiles[srcFile.FullPath]; !ok {
 			err = AddFile(src, dst, srcFile, logger)
 			if err != nil {
-				logger.Printf(err.Error())
+				logger.Error(err.Error())
 				return err
 			}
 		}
@@ -54,7 +54,7 @@ func SyncDirs(wg *sync.WaitGroup, logger *log.Logger, src, dst string) error {
 		}
 		err = UpdateFile(src, dst, dstFile, srcFile, logger)
 		if err != nil {
-			logger.Printf(err.Error())
+			logger.Error(err.Error())
 			return err
 		}
 	}
@@ -64,8 +64,11 @@ func SyncDirs(wg *sync.WaitGroup, logger *log.Logger, src, dst string) error {
 		if _, ok := srcFiles[dstFile.FullPath]; !ok {
 			err = DeleteFile(dst, dstFile, logger)
 			if err != nil {
-				logger.Printf(err.Error())
+				logger.Error(err.Error())
 				return err
+			}
+			if dstFile.IsDir {
+				break
 			}
 		}
 	}
@@ -105,7 +108,7 @@ func GetFiles(dir string) (map[string]FileInfo, error) {
 
 	return files, nil
 }
-func copyFile(src, dst string) error {
+func CopyFile(src, dst string) error {
 	srcFile, err := os.Open(src)
 	if err != nil {
 		return err
@@ -129,49 +132,49 @@ func copyFile(src, dst string) error {
 	return os.Chmod(dst, srcInfo.Mode())
 }
 
-func AddFile(src string, dst string, file FileInfo, logger *log.Logger) error {
+func AddFile(src string, dst string, file FileInfo, logger *logrus.Logger) error {
 	dstFilePath := filepath.Join(dst, file.FullPath)
 	srcFilePath := filepath.Join(src, file.FullPath)
 
 	// Копируем файлы
 	if file.IsDir {
-		logger.Printf("Creating directory %s\n", dstFilePath)
+		logger.Printf("Creating directory %s", dstFilePath)
 		if err := os.Mkdir(dstFilePath, 0755); err != nil {
-			return fmt.Errorf("Failed to create directory %s: %v\n", dstFilePath, err)
+			return fmt.Errorf("Failed to create directory %s: %v", dstFilePath, err)
 		}
 	} else {
-		logger.Printf("Copying file %s to %s. File size - %v\n", file.Name, dst, file.Size)
-		if err := copyFile(srcFilePath, dstFilePath); err != nil {
-			return fmt.Errorf("Failed to copy file %s to %s: %v\n", srcFilePath, dstFilePath, err)
+		logger.Printf("Copying file %s to %s. File size - %v bytes", file.Name, dst, file.Size)
+		if err := CopyFile(srcFilePath, dstFilePath); err != nil {
+			return fmt.Errorf("Failed to copy file %s to %s: %v", srcFilePath, dstFilePath, err)
 		}
 	}
 	return nil
 }
 
-func UpdateFile(src string, dst string, dstFile FileInfo, srcFile FileInfo, logger *log.Logger) error {
+func UpdateFile(src string, dst string, dstFile FileInfo, srcFile FileInfo, logger *logrus.Logger) error {
 	dstFilePath := filepath.Join(dst, dstFile.FullPath)
 	srcFilePath := filepath.Join(src, srcFile.FullPath)
 	if !dstFile.IsDir && !srcFile.IsDir && (dstFile.Size != srcFile.Size) || (dstFile.Permissons != srcFile.Permissons) {
-		logger.Printf("Updating file %s. File size - %v\n", dstFile, dstFile.Size)
-		if err := copyFile(srcFilePath, dstFilePath); err != nil {
-			return fmt.Errorf("Failed to update file %s: %v\n", dstFilePath, err)
+		logger.Printf("Updating file %s. File size - %v bytes", dstFile, dstFile.Size)
+		if err := CopyFile(srcFilePath, dstFilePath); err != nil {
+			return fmt.Errorf("Failed to update file %s: %v", dstFilePath, err)
 		}
 	}
 	return nil
 }
 
-func DeleteFile(dst string, file FileInfo, logger *log.Logger) error {
+func DeleteFile(dst string, file FileInfo, logger *logrus.Logger) error {
 	filePath := filepath.Join(dst, file.FullPath)
 
 	if file.IsDir {
-		logger.Printf("Removing directory %s\n", filePath)
+		logger.Printf("Removing directory %s", filePath)
 		if err := os.RemoveAll(filePath); err != nil {
-			return fmt.Errorf("Failed to remove directory %s: %v\n", filePath, err)
+			return fmt.Errorf("Failed to remove directory %s: %v", filePath, err)
 		}
 	} else {
-		logger.Printf("Removing file %s. File size - %v\n", file.Name, file.Size)
+		logger.Printf("Removing file %s. File size - %v bytes", file.Name, file.Size)
 		if err := os.Remove(filePath); err != nil {
-			return fmt.Errorf("Failed to remove file %s: %v\n", filePath, err)
+			return fmt.Errorf("Failed to remove file %s: %v", filePath, err)
 		}
 	}
 	return nil

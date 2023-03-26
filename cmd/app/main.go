@@ -4,10 +4,13 @@ import (
 	"context"
 	"fmt"
 	"folder_sync/internal/app/sync_folder"
+	"github.com/sirupsen/logrus"
 	"io"
-	"log"
 	"os"
 	"os/signal"
+	"path"
+	"runtime"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -29,14 +32,27 @@ func main() {
 	// Открываем файл для записи логов
 	logFile, err := os.OpenFile(logFile, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
-		log.Fatalf("failed to open log file: %v", err)
+		logrus.Fatalf("failed to open log file: %v", err)
 	}
 	defer logFile.Close()
 
 	// Создаем логгер
-	logger := log.New(io.MultiWriter(os.Stdout, logFile), "", log.Ldate|log.Ltime)
+	logger := logrus.New()
+	logger.Out = io.MultiWriter(os.Stdout, logFile)
+	logger.Level = logrus.DebugLevel
+	logger.SetReportCaller(true)
+	logger.Formatter = &logrus.TextFormatter{
+		ForceColors:   true,
+		ForceQuote:    true,
+		FullTimestamp: true,
+		PadLevelText:  true,
+		CallerPrettyfier: func(frame *runtime.Frame) (function string, file string) {
+			fileName := path.Base(frame.File) + ":" + strconv.Itoa(frame.Line)
+			return "", fileName
+		},
+	}
 
-	logger.Printf("Starting sync of %s and %s\n", srcFolder, dstFolder)
+	logger.Infof("Starting sync of %s and %s", srcFolder, dstFolder)
 
 	// Создаем контекст для отмены операции
 	ctx, cancel := context.WithCancel(context.Background())
@@ -56,7 +72,7 @@ func main() {
 			case <-ctx.Done():
 				return
 			default:
-				logger.Printf("Syncing %s and %s\n", srcFolder, dstFolder)
+				logger.Infof("Syncing %s and %s", srcFolder, dstFolder)
 				wg.Add(1)
 				go func() {
 					err := sync_folder.SyncDirs(&wg, logger, srcFolder, dstFolder)
@@ -77,5 +93,5 @@ func main() {
 	cancel()
 	wg.Wait()
 
-	fmt.Println("Exiting...")
+	logger.Info("Exiting...")
 }
