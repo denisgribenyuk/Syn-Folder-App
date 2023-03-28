@@ -22,4 +22,16 @@
 ```bash
   ./syncfolder ./origin_folder ./duplicate 
 ```
-    
+
+## Запуск тестов
+
+Для запуска тестов используйте команду
+
+```bash
+  make tests
+```
+Возможен запуск с отображением покрытия
+
+```bash
+  make cover
+```
