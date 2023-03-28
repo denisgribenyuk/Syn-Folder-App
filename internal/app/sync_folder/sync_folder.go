@@ -16,7 +16,7 @@ type FileInfo struct {
 	ModTime    time.Time
 	IsDir      bool
 	FullPath   string
-	Permissons string
+	Permissons os.FileMode
 }
 
 func SyncDirs(wg *sync.WaitGroup, logger *logrus.Logger, src, dst string) error {
@@ -96,12 +96,11 @@ func GetFiles(dir string) (map[string]FileInfo, error) {
 			Size:       info.Size(),
 			ModTime:    info.ModTime(),
 			IsDir:      info.IsDir(),
-			Permissons: info.Mode().String(),
+			Permissons: info.Mode(),
 			FullPath:   relPath,
 		}
 		return nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
