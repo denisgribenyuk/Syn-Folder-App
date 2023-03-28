@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	logFile = "logs.log"
+	logFile = "log.txt"
 )
 
 func main() {
