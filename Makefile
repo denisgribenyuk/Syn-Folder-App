@@ -6,7 +6,7 @@ build:
 
 
 bench:
-	cd test/tests_sync_folder; \
+	cd test; \
 	go test -bench=BenchmarkCopyFile -benchmem -benchtime=10s
 
 tests:
